@@ -114,7 +114,7 @@ Draggable resize handle between editor and chat, clamped 30%–75%.
 
 | Endpoint | Description |
 |---|---|
-| `GET /lectures` | List all lectures (defaults + user-uploaded) |
+| `GET /lectures` | List all lectures — default lectures visible to all authenticated users; user-uploaded lectures visible only to the uploader |
 | `POST /lectures` | Upload a new .hs file |
 | `GET /lectures/{id}/content` | Get user's saved version of a lecture |
 | `PUT /lectures/{id}/content` | Save user's annotated version |
@@ -122,7 +122,7 @@ Draggable resize handle between editor and chat, clamped 30%–75%.
 | `GET /chat/{lecture_id}/history` | Get chat history for a lecture |
 | `DELETE /chat/{lecture_id}/history` | Clear chat history |
 | `POST /execute` | Run code via Judge0, return output |
-| `POST /webhooks/stripe` | Stripe payment webhook |
+| `POST /webhooks/stripe` | Stripe payment webhook — implement as stub in v1, returns 200, full logic added when payments enabled |
 
 ---
 
@@ -191,7 +191,7 @@ These are placeholder prompts to be refined during the prompt engineering phase:
 |---|---|
 | ✦ Объяснить лекцию | "Объясни мне эту лекцию с нуля, простым языком. Используй аналогии." |
 | ⚡ Создать задачи | "Создай 5 практических задач по этой лекции, от простого к сложному." |
-| 🔍 Объяснить концепцию | "Объясни подробно следующую концепцию: {selected_text}" |
+| 🔍 Объяснить концепцию | "Объясни подробно следующую концепцию: {selected_text}" — student must have text selected in Monaco before clicking; if nothing is selected, button shows a tooltip "Выделите текст в редакторе" and does not send |
 | 💡 Подсказка к задаче | "Дай подсказку к задаче, не раскрывая полного решения." |
 | 🔎 Проверить мой код | "Проверь этот код и дай обратную связь:\n\n{editor_content}" |
 | 📋 Резюме лекции | "Сделай краткое резюме этой лекции в виде буллетов." |
