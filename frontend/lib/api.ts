@@ -1,4 +1,8 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
+// Server components run inside Docker — use internal service name
+// Browser clients use the public URL
+const API_URL = typeof window === "undefined"
+  ? (process.env.INTERNAL_API_URL || "http://fastapi:8000")
+  : (process.env.NEXT_PUBLIC_API_URL || "http://localhost/api")
 
 async function apiFetch<T>(
   path: string,

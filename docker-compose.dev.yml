@@ -7,6 +7,9 @@ services:
       - ./backend:/app
 
   nextjs:
+    build:
+      context: ./frontend
+      target: base
     command: npm run dev
     ports:
       - "3000:3000"
