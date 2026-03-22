@@ -2,6 +2,7 @@ import uuid
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, Form, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, or_
+from sqlalchemy.exc import IntegrityError
 from app.database import get_db
 from app.auth import get_current_user
 from app.models.lecture import Lecture, UserLecture
@@ -99,3 +100,59 @@ async def get_lecture_content(
         "content": content,
         "is_user_copy": user_lecture is not None,
     }
+
+
+@router.put("/{lecture_id}/content")
+async def save_lecture_content(
+    lecture_id: uuid.UUID,
+    body: dict,
+    user_id: str = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    # Verify user has access
+    result = await db.execute(
+        select(Lecture).where(
+            Lecture.id == lecture_id,
+            or_(Lecture.is_default == True, Lecture.created_by == user_id),
+        )
+    )
+    lecture = result.scalar_one_or_none()
+    if not lecture:
+        raise HTTPException(status_code=404, detail="Lecture not found")
+
+    if "content" not in body:
+        raise HTTPException(status_code=422, detail="'content' field is required")
+    content = body["content"]
+
+    # Upsert user_lectures row
+    user_copy_result = await db.execute(
+        select(UserLecture).where(
+            UserLecture.user_id == user_id,
+            UserLecture.lecture_id == lecture_id,
+        )
+    )
+    user_lecture = user_copy_result.scalar_one_or_none()
+    if user_lecture:
+        user_lecture.content = content
+        await db.commit()
+    else:
+        try:
+            user_lecture = UserLecture(
+                user_id=user_id,
+                lecture_id=lecture_id,
+                content=content,
+            )
+            db.add(user_lecture)
+            await db.commit()
+        except IntegrityError:
+            await db.rollback()
+            user_copy_result2 = await db.execute(
+                select(UserLecture).where(
+                    UserLecture.user_id == user_id,
+                    UserLecture.lecture_id == lecture_id,
+                )
+            )
+            user_lecture = user_copy_result2.scalar_one()
+            user_lecture.content = content
+            await db.commit()
+    return {"is_user_copy": True}

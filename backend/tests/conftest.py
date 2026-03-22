@@ -11,7 +11,7 @@ MOCK_USER_ID = "user_test123"
 
 TEST_DATABASE_URL = os.getenv(
     "TEST_DATABASE_URL",
-    "postgresql+asyncpg://studyapp:studyapp@localhost:5432/studyapp_test"
+    "sqlite+aiosqlite:///:memory:"
 )
 
 @pytest_asyncio.fixture

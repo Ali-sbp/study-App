@@ -46,4 +46,23 @@ export const api = {
     }
     return res.json()
   },
+
+  saveLectureContent: (token: string, id: string, content: string) =>
+    apiFetch<{ is_user_copy: boolean }>(`/lectures/${id}/content`, token, {
+      method: "PUT",
+      body: JSON.stringify({ content }),
+    }),
+
+  getChatHistory: (token: string, lectureId: string) =>
+    apiFetch<{ role: string; content: string }[]>(`/chat/${lectureId}/history`, token),
+
+  clearChatHistory: (token: string, lectureId: string) =>
+    apiFetch<{ ok: boolean }>(`/chat/${lectureId}/history`, token, { method: "DELETE" }),
+
+  execute: (token: string, code: string, languageId = 12) =>
+    apiFetch<{ stdout: string | null; stderr: string | null; compile_output: string | null; status: string }>
+      ("/execute", token, {
+        method: "POST",
+        body: JSON.stringify({ code, language_id: languageId }),
+      }),
 }
