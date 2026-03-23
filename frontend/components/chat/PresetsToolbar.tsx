@@ -39,12 +39,18 @@ export function PresetsToolbar({ lectureId: _lectureId, getSelectedText, getEdit
   }
 
   return (
-    <div className="flex items-center gap-1 px-3 py-2 bg-[#181825] border-b border-[#313244] flex-wrap">
+    <div
+      className="flex items-center gap-1 px-3 py-2 border-t flex-wrap"
+      style={{ background: "var(--mantle)", borderColor: "var(--surface)" }}
+    >
       {PRESETS.map((preset) => (
         <button
           key={preset.label}
           onClick={() => handlePreset(preset)}
-          className="flex items-center gap-1 px-2.5 py-1 rounded text-xs bg-[#313244] text-[#cdd6f4] hover:bg-[#45475a] transition-colors"
+          className="flex items-center gap-1 px-2.5 py-1 rounded text-xs transition-colors"
+          style={{ background: "var(--surface)", color: "var(--text)" }}
+          onMouseEnter={e => (e.currentTarget.style.background = "var(--overlay)")}
+          onMouseLeave={e => (e.currentTarget.style.background = "var(--surface)")}
         >
           <span>{preset.icon}</span>
           <span>{preset.label}</span>
