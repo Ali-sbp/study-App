@@ -28,16 +28,20 @@ export const api = {
   upsertUser: (token: string) =>
     apiFetch<{ clerk_id: string; plan: string }>("/users/me", token, { method: "POST" }),
 
-  listLectures: (token: string) =>
-    apiFetch<import("./types").Lecture[]>("/lectures", token),
+  listLectures: (token: string, fileType?: "lecture" | "practice") =>
+    apiFetch<import("./types").Lecture[]>(
+      fileType ? `/lectures?file_type=${fileType}` : "/lectures",
+      token
+    ),
 
   getLectureContent: (token: string, id: string) =>
     apiFetch<import("./types").LectureContent>(`/lectures/${id}/content`, token),
 
-  uploadLecture: async (token: string, title: string, file: File, isDefault = false) => {
+  uploadLecture: async (token: string, title: string, file: File, isDefault = false, fileType: "lecture" | "practice" = "lecture") => {
     const form = new FormData()
     form.append("title", title)
     form.append("file", file)
+    form.append("file_type", fileType)
     form.append("is_default", String(isDefault))
     const res = await fetch(`${API_URL}/lectures`, {
       method: "POST",
@@ -69,4 +73,47 @@ export const api = {
         method: "POST",
         body: JSON.stringify({ code, language_id: languageId }),
       }),
+
+  ghci: (token: string, code: string, expr: string) =>
+    apiFetch<{ output: string; stderr: string; exit_code: number }>
+      ("/ghci", token, {
+        method: "POST",
+        body: JSON.stringify({ code, expr }),
+      }),
+
+  savePracticeContent: (token: string, lectureId: string, content: string) =>
+    apiFetch<{ ok: boolean }>(`/lectures/${lectureId}/practice`, token, {
+      method: "PUT",
+      body: JSON.stringify({ content }),
+    }),
+
+  listUserFiles: (token: string, lectureId: string) =>
+    apiFetch<import("./types").UserFileData[]>(`/lectures/${lectureId}/files`, token),
+
+  createUserFile: (token: string, lectureId: string, name: string) =>
+    apiFetch<import("./types").UserFileData>(`/lectures/${lectureId}/files`, token, {
+      method: "POST",
+      body: JSON.stringify({ name }),
+    }),
+
+  saveUserFile: (token: string, lectureId: string, fileId: string, content: string) =>
+    apiFetch<import("./types").UserFileData>(`/lectures/${lectureId}/files/${fileId}`, token, {
+      method: "PUT",
+      body: JSON.stringify({ content }),
+    }),
+
+  deleteUserFile: (token: string, lectureId: string, fileId: string) =>
+    apiFetch<{ ok: boolean }>(`/lectures/${lectureId}/files/${fileId}`, token, {
+      method: "DELETE",
+    }),
+
+  // Create-or-return a personal fork of an admin lecture/practice file
+  forkLecture: (token: string, sourceId: string) =>
+    apiFetch<import("./types").UserFileData>(`/lectures/${sourceId}/fork`, token, {
+      method: "POST",
+    }),
+
+  // All personal forks this user has made, sorted by last edit
+  getPersonalCopies: (token: string) =>
+    apiFetch<import("./types").UserFileData[]>("/lectures/my-copies", token),
 }
