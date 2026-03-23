@@ -1,11 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
 import httpx
 from app.auth import get_current_user
-from app.config import get_settings
 
 router = APIRouter(tags=["execute"])
 
-HASKELL_LANGUAGE_ID = 12   # Judge0 CE language ID for Haskell
+HASKELL_RUNNER_URL = "http://haskell-runner:8080"
 
 
 @router.post("/execute")
@@ -13,37 +12,63 @@ async def execute_code(
     body: dict,
     user_id: str = Depends(get_current_user),
 ):
-    settings = get_settings()
-    if not settings.judge0_api_url or not settings.judge0_api_key:
-        raise HTTPException(status_code=503, detail="Code execution not configured")
-
     code = body.get("code", "")
-    language_id = body.get("language_id", HASKELL_LANGUAGE_ID)
-    if language_id != HASKELL_LANGUAGE_ID:
-        raise HTTPException(status_code=422, detail=f"Only language_id {HASKELL_LANGUAGE_ID} (Haskell) is supported")
-
-    headers = {
-        "X-RapidAPI-Key": settings.judge0_api_key,
-        "X-RapidAPI-Host": "judge0-ce.p.rapidapi.com",
-        "Content-Type": "application/json",
-    }
+    if not code.strip():
+        raise HTTPException(status_code=422, detail="No code provided")
 
     async with httpx.AsyncClient() as client:
-        # Submit
-        submit = await client.post(
-            f"{settings.judge0_api_url}/submissions?base64_encoded=false&wait=true",
-            json={"source_code": code, "language_id": language_id},
-            headers=headers,
-            timeout=30.0,
-        )
-        result = submit.json()
+        try:
+            res = await client.post(
+                f"{HASKELL_RUNNER_URL}/execute",
+                json={"code": code},
+                timeout=20.0,
+            )
+        except httpx.ConnectError:
+            raise HTTPException(status_code=503, detail="Haskell runner is unavailable")
+
+        if not res.is_success:
+            raise HTTPException(status_code=502, detail=f"Runner error: {res.text}")
+
+        data = res.json()
+
+    stdout = data.get("stdout") or None
+    stderr = data.get("stderr") or None
+    exit_code = data.get("exit_code", 1)
+    status = "Accepted" if exit_code == 0 else "Runtime Error"
 
     return {
-        "stdout": result.get("stdout"),
-        "stderr": result.get("stderr"),
-        "compile_output": result.get("compile_output"),
-        "status": result.get("status", {}).get("description"),
+        "stdout": stdout,
+        "stderr": stderr,
+        "compile_output": None,
+        "status": status,
     }
+
+
+@router.post("/ghci")
+async def ghci_eval(
+    body: dict,
+    user_id: str = Depends(get_current_user),
+):
+    expr = body.get("expr", "").strip()
+    if not expr:
+        raise HTTPException(status_code=422, detail="No expression provided")
+
+    code = body.get("code", "")
+
+    async with httpx.AsyncClient() as client:
+        try:
+            res = await client.post(
+                f"{HASKELL_RUNNER_URL}/ghci",
+                json={"code": code, "expr": expr},
+                timeout=20.0,
+            )
+        except httpx.ConnectError:
+            raise HTTPException(status_code=503, detail="Haskell runner is unavailable")
+
+        if not res.is_success:
+            raise HTTPException(status_code=502, detail=f"Runner error: {res.text}")
+
+        return res.json()
 
 
 @router.post("/webhooks/stripe")

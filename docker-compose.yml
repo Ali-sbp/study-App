@@ -15,12 +15,18 @@ services:
       timeout: 5s
       retries: 5
 
+  haskell-runner:
+    build: ./haskell-runner
+    restart: unless-stopped
+
   fastapi:
     build: ./backend
     env_file: .env
     depends_on:
       postgres:
         condition: service_healthy
+      haskell-runner:
+        condition: service_started
 
   nextjs:
     build: ./frontend
