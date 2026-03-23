@@ -2,9 +2,30 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import JWTError, jwt
 import httpx
+import time
 from app.config import get_settings
 
 security = HTTPBearer()
+
+# Cache JWKS for 1 hour — avoids hitting Clerk's servers on every request
+_jwks_cache: dict[str, dict] = {}
+_JWKS_TTL = 3600
+
+
+async def _fetch_jwks(issuer: str) -> dict:
+    now = time.monotonic()
+    cached = _jwks_cache.get(issuer)
+    if cached and cached["expires_at"] > now:
+        return cached["jwks"]
+
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        resp = await client.get(f"{issuer}/.well-known/jwks.json")
+        resp.raise_for_status()
+        jwks = resp.json()
+
+    _jwks_cache[issuer] = {"jwks": jwks, "expires_at": now + _JWKS_TTL}
+    return jwks
+
 
 async def verify_clerk_token(token: str) -> str:
     """Verify a Clerk JWT and return the user's Clerk ID (sub claim)."""
@@ -20,10 +41,7 @@ async def verify_clerk_token(token: str) -> str:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token: untrusted issuer")
 
         try:
-            async with httpx.AsyncClient() as client:
-                jwks_response = await client.get(f"{issuer}/.well-known/jwks.json")
-                jwks_response.raise_for_status()
-                jwks = jwks_response.json()
+            jwks = await _fetch_jwks(issuer)
         except httpx.RequestError:
             raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Auth service unavailable")
         except httpx.HTTPStatusError:

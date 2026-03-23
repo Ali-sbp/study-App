@@ -12,6 +12,7 @@ class Lecture(Base):
     title: Mapped[str] = mapped_column(String(255))
     filename: Mapped[str] = mapped_column(String(255))
     original_content: Mapped[str] = mapped_column(Text)
+    file_type: Mapped[str] = mapped_column(String(16), default="lecture")  # "lecture" | "practice"
     is_default: Mapped[bool] = mapped_column(Boolean, default=False)
     created_by: Mapped[str | None] = mapped_column(
         String, ForeignKey("users.clerk_id", ondelete="SET NULL"), nullable=True
@@ -31,4 +32,5 @@ class UserLecture(Base):
         UUID(as_uuid=True), ForeignKey("lectures.id", ondelete="CASCADE")
     )
     content: Mapped[str] = mapped_column(Text)
+    practice_content: Mapped[str | None] = mapped_column(Text, nullable=True)
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())

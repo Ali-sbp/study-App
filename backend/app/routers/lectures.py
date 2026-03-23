@@ -13,20 +13,23 @@ router = APIRouter(prefix="/lectures", tags=["lectures"])
 
 @router.get("")
 async def list_lectures(
+    file_type: str | None = None,
     user_id: str = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    result = await db.execute(
-        select(Lecture).where(
-            or_(Lecture.is_default == True, Lecture.created_by == user_id)
-        )
+    query = select(Lecture).where(
+        or_(Lecture.is_default == True, Lecture.created_by == user_id)
     )
+    if file_type in ("lecture", "practice"):
+        query = query.where(Lecture.file_type == file_type)
+    result = await db.execute(query)
     lectures = result.scalars().all()
     return [
         {
             "id": str(l.id),
             "title": l.title,
             "filename": l.filename,
+            "file_type": l.file_type,
             "is_default": l.is_default,
             "created_at": l.created_at.isoformat(),
         }
@@ -38,6 +41,7 @@ async def list_lectures(
 async def upload_lecture(
     title: str = Form(...),
     file: UploadFile = File(...),
+    file_type: str = Form("lecture"),
     is_default: bool = Form(False),
     user_id: str = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -50,9 +54,13 @@ async def upload_lecture(
         decoded_content = raw.decode("utf-8")
     except UnicodeDecodeError:
         raise HTTPException(status_code=422, detail="File must be valid UTF-8 text")
+    if file_type not in ("lecture", "practice"):
+        raise HTTPException(status_code=422, detail="file_type must be 'lecture' or 'practice'")
+
     lecture = Lecture(
         title=title,
         filename=file.filename,
+        file_type=file_type,
         original_content=decoded_content,
         is_default=effective_is_default,
         created_by=user_id,
@@ -93,11 +101,14 @@ async def get_lecture_content(
     user_lecture = user_copy_result.scalar_one_or_none()
     content = user_lecture.content if user_lecture else lecture.original_content
 
+    practice_content = user_lecture.practice_content if user_lecture else None
+
     return {
         "id": str(lecture.id),
         "title": lecture.title,
         "filename": lecture.filename,
         "content": content,
+        "practice_content": practice_content,
         "is_user_copy": user_lecture is not None,
     }
 
@@ -156,3 +167,56 @@ async def save_lecture_content(
             user_lecture.content = content
             await db.commit()
     return {"is_user_copy": True}
+
+
+@router.put("/{lecture_id}/practice")
+async def save_practice_content(
+    lecture_id: uuid.UUID,
+    body: dict,
+    user_id: str = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(Lecture).where(
+            Lecture.id == lecture_id,
+            or_(Lecture.is_default == True, Lecture.created_by == user_id),
+        )
+    )
+    if not result.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Lecture not found")
+
+    content = body.get("content", "")
+
+    user_copy_result = await db.execute(
+        select(UserLecture).where(
+            UserLecture.user_id == user_id,
+            UserLecture.lecture_id == lecture_id,
+        )
+    )
+    user_lecture = user_copy_result.scalar_one_or_none()
+    if user_lecture:
+        user_lecture.practice_content = content
+        await db.commit()
+    else:
+        from sqlalchemy.exc import IntegrityError
+        try:
+            user_lecture = UserLecture(
+                user_id=user_id,
+                lecture_id=lecture_id,
+                content="",
+                practice_content=content,
+            )
+            db.add(user_lecture)
+            await db.commit()
+        except IntegrityError:
+            await db.rollback()
+            res2 = await db.execute(
+                select(UserLecture).where(
+                    UserLecture.user_id == user_id,
+                    UserLecture.lecture_id == lecture_id,
+                )
+            )
+            ul = res2.scalar_one()
+            ul.practice_content = content
+            await db.commit()
+    return {"ok": True}
