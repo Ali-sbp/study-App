@@ -4,4 +4,6 @@ node_modules/
 .next/
 *.node
 .env
-NOTES.md
+NOTES.md__pycache__/
+*.pyc
+docs/superpowers/

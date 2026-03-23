@@ -11,15 +11,23 @@ export default async function LectureRoute({ params }: { params: { id: string } 
     redirect("/sign-in")
   }
 
-  const [lectureContent, history] = await Promise.all([
+  const [lectureContent, history, files, allLectures, allPractice, personalCopy] = await Promise.all([
     api.getLectureContent(token!, params.id),
     api.getChatHistory(token!, params.id),
+    api.listUserFiles(token!, params.id),
+    api.listLectures(token!, "lecture"),
+    api.listLectures(token!, "practice"),
+    api.forkLecture(token!, params.id),
   ])
 
   return (
     <LecturePage
       lecture={lectureContent}
       initialHistory={history}
+      initialFiles={files}
+      allLectures={allLectures}
+      allPractice={allPractice}
+      personalCopy={personalCopy}
       token={token!}
       lectureId={params.id}
     />

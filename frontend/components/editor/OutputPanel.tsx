@@ -25,17 +25,20 @@ export function OutputPanel({ output, running, onRun, showRunButton }: Props) {
   const isError = !output?.stdout && (!!output?.stderr || !!output?.compile_output)
 
   return (
-    <div className="border-t border-[#313244] bg-[#181825] flex-shrink-0">
+    <div className="flex-shrink-0" style={{ borderTop: "1px solid var(--surface)", background: "var(--mantle)" }}>
       {/* Header bar */}
       <div className="flex items-center justify-between px-3 py-1.5">
         <button
           onClick={() => setCollapsed(!collapsed)}
-          className="text-xs text-[#6c7086] hover:text-[#cdd6f4] flex items-center gap-1"
+          className="text-xs flex items-center gap-1"
+          style={{ color: "var(--subtext)" }}
+          onMouseEnter={e => (e.currentTarget.style.color = "var(--text)")}
+          onMouseLeave={e => (e.currentTarget.style.color = "var(--subtext)")}
         >
           <span>{collapsed ? "▶" : "▼"}</span>
           <span>Вывод</span>
           {hasOutput && (
-            <span className={`ml-1 ${isError ? "text-[#f38ba8]" : "text-[#a6e3a1]"}`}>
+            <span className="ml-1" style={{ color: isError ? "var(--red)" : "var(--green)" }}>
               ● {output?.status}
             </span>
           )}
@@ -45,7 +48,8 @@ export function OutputPanel({ output, running, onRun, showRunButton }: Props) {
             size="sm"
             onClick={onRun}
             disabled={running}
-            className="h-6 text-xs bg-[#a6e3a1] text-[#11111b] hover:bg-[#94d8a0]"
+            className="h-6 text-xs"
+            style={{ background: "var(--green)", color: "var(--crust)" }}
           >
             {running ? "Запуск..." : "▶ Запустить"}
           </Button>
@@ -56,9 +60,12 @@ export function OutputPanel({ output, running, onRun, showRunButton }: Props) {
       {!collapsed && (
         <div className="px-3 pb-2 max-h-32 overflow-y-auto">
           {!hasOutput ? (
-            <p className="text-[#6c7086] text-xs font-mono">Нажмите ▶ Запустить для выполнения кода</p>
+            <p className="text-xs font-mono" style={{ color: "var(--subtext)" }}>Нажмите ▶ Запустить для выполнения кода</p>
           ) : (
-            <pre className={`text-xs font-mono whitespace-pre-wrap ${isError ? "text-[#f38ba8]" : "text-[#a6e3a1]"}`}>
+            <pre
+              className="text-xs font-mono whitespace-pre-wrap"
+              style={{ color: isError ? "var(--red)" : "var(--green)" }}
+            >
               {displayText || "(нет вывода)"}
             </pre>
           )}
