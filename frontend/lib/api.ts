@@ -37,6 +37,14 @@ export const api = {
   getLectureContent: (token: string, id: string) =>
     apiFetch<import("./types").LectureContent>(`/lectures/${id}/content`, token),
 
+  deleteLecture: async (token: string, id: string) => {
+    const res = await fetch(`${API_URL}/lectures/${id}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (!res.ok) throw new Error(`API error ${res.status}`)
+  },
+
   uploadLecture: async (token: string, title: string, file: File, isDefault = false, fileType: "lecture" | "practice" = "lecture") => {
     const form = new FormData()
     form.append("title", title)
@@ -116,4 +124,12 @@ export const api = {
   // All personal forks this user has made, sorted by last edit
   getPersonalCopies: (token: string) =>
     apiFetch<import("./types").UserFileData[]>("/lectures/my-copies", token),
+
+  // All custom files (+ button) this user has created, sorted by last edit
+  getMyFiles: (token: string) =>
+    apiFetch<import("./types").UserFileData[]>("/lectures/my-files", token),
+
+  // Delete any user file by ID directly (no lecture_id needed)
+  deleteMyFile: (token: string, fileId: string) =>
+    apiFetch<{ ok: boolean }>(`/lectures/my-files/${fileId}`, token, { method: "DELETE" }),
 }

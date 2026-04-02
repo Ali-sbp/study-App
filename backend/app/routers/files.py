@@ -11,13 +11,14 @@ from sqlalchemy import or_
 router = APIRouter(prefix="/lectures", tags=["files"])
 
 
-def _file_dict(f: UserFile) -> dict:
+def _file_dict(f: UserFile, file_type: str | None = None) -> dict:
     return {
         "id": str(f.id),
         "name": f.name,
         "content": f.content,
         "source_id": str(f.source_id) if f.source_id else None,
         "updated_at": f.updated_at.isoformat() if f.updated_at else None,
+        "file_type": file_type,
     }
 
 
@@ -33,18 +34,51 @@ async def _check_lecture_access(lecture_id: uuid.UUID, user_id: str, db: AsyncSe
 
 
 # IMPORTANT: literal-path routes must come before /{lecture_id} param routes
+@router.get("/my-files")
+async def list_my_files(
+    user_id: str = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return all custom files (not forks) this user has created across any lecture."""
+    result = await db.execute(
+        select(UserFile)
+        .where(UserFile.user_id == user_id, UserFile.source_id.is_(None))
+        .order_by(UserFile.updated_at.desc())
+    )
+    return [_file_dict(f) for f in result.scalars().all()]
+
+
+@router.delete("/my-files/{file_id}")
+async def delete_my_file(
+    file_id: uuid.UUID,
+    user_id: str = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Delete any user-owned file directly by ID (no lecture_id needed)."""
+    result = await db.execute(
+        select(UserFile).where(UserFile.id == file_id, UserFile.user_id == user_id)
+    )
+    f = result.scalar_one_or_none()
+    if not f:
+        raise HTTPException(status_code=404, detail="File not found")
+    await db.delete(f)
+    await db.commit()
+    return {"ok": True}
+
+
 @router.get("/my-copies")
 async def list_personal_copies(
     user_id: str = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Return all personal forks this user has made of any admin file."""
+    """Return all personal forks this user has made of any admin file, with file_type from source."""
     result = await db.execute(
-        select(UserFile)
+        select(UserFile, Lecture.file_type)
+        .join(Lecture, UserFile.source_id == Lecture.id, isouter=True)
         .where(UserFile.user_id == user_id, UserFile.source_id.isnot(None))
         .order_by(UserFile.updated_at.desc())
     )
-    return [_file_dict(f) for f in result.scalars().all()]
+    return [_file_dict(f, file_type) for f, file_type in result.all()]
 
 
 @router.post("/{lecture_id}/fork", status_code=200)

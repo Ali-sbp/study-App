@@ -76,6 +76,23 @@ async def upload_lecture(
     }
 
 
+@router.delete("/{lecture_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_lecture(
+    lecture_id: uuid.UUID,
+    user_id: str = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    settings = get_settings()
+    if user_id not in settings.admin_ids:
+        raise HTTPException(status_code=403, detail="Admin only")
+    result = await db.execute(select(Lecture).where(Lecture.id == lecture_id))
+    lecture = result.scalar_one_or_none()
+    if not lecture:
+        raise HTTPException(status_code=404, detail="Lecture not found")
+    await db.delete(lecture)
+    await db.commit()
+
+
 @router.get("/{lecture_id}/content")
 async def get_lecture_content(
     lecture_id: uuid.UUID,

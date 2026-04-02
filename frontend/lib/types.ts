@@ -22,6 +22,7 @@ export interface UserFileData {
   content: string
   source_id?: string | null
   updated_at?: string | null
+  file_type?: "lecture" | "practice" | null
 }
 
 export interface User {

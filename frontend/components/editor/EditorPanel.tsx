@@ -22,6 +22,7 @@ interface Props {
   allPractice: Lecture[]
   personalCopy: UserFileData
   monacoTheme: string
+  initialTab?: "lecture" | "practice"
   onGetSelectedText: (fn: () => string) => void
   onGetEditorContent: (fn: () => string) => void
   onContextLabelChange: (label: string) => void
@@ -78,26 +79,31 @@ function FilePicker({
 
 export function EditorPanel({
   lecture, token, lectureId, initialFiles, allLectures, allPractice, personalCopy, monacoTheme,
+  initialTab = "lecture",
   onGetSelectedText, onGetEditorContent, onContextLabelChange, onSendToChat,
 }: Props) {
   const { getToken } = useAuth()
 
-  // Lecture tab state — backed by the user's personal fork
-  const lectureCopyIdRef = useRef(personalCopy.id)          // always points to current fork's UserFile id
+  // When arriving via ?tab=practice, personalCopy IS the practice fork — not a lecture fork.
+  // Route its content to the practice tab; leave the lecture tab showing the admin source content.
+  const isPracticeFork = initialTab === "practice"
+
+  // Lecture tab state — backed by the user's personal fork (unless we came from a practice link)
+  const lectureCopyIdRef = useRef(isPracticeFork ? "" : personalCopy.id)
   const [selectedLectureId, setSelectedLectureId] = useState(lectureId)
-  const [lectureCode, setLectureCode] = useState(personalCopy.content) // start from their copy
+  const [lectureCode, setLectureCode] = useState(isPracticeFork ? lecture.content : personalCopy.content)
   const [lectureTitle, setLectureTitle] = useState(lecture.title)
   const [lecturePicker, setLecturePicker] = useState(false)
 
-  // Practice tab state — forks on picker selection
-  const [practiceCopyId, setPracticeCopyId] = useState<string | null>(null) // UserFile id after fork
+  // Practice tab state — pre-populated if we came from a practice fork link
+  const [practiceCopyId, setPracticeCopyId] = useState<string | null>(isPracticeFork ? personalCopy.id : null)
   const [selectedPracticeId, setSelectedPracticeId] = useState<string | null>(null)
-  const [practiceCode, setPracticeCode] = useState(lecture.practice_content ?? DEFAULT_PRACTICE)
-  const [practiceTitle, setPracticeTitle] = useState<string | null>(null)
+  const [practiceCode, setPracticeCode] = useState(isPracticeFork ? personalCopy.content : (lecture.practice_content ?? DEFAULT_PRACTICE))
+  const [practiceTitle, setPracticeTitle] = useState<string | null>(isPracticeFork ? lecture.title : null)
   const [practicePicker, setPracticePicker] = useState(false)
 
-  // Custom files tab state
-  const [activeTab, setActiveTab] = useState<"lecture" | "practice" | string>("lecture")
+  // Custom files tab state — initialTab from URL (?tab=practice) so dashboard links open the right tab
+  const [activeTab, setActiveTab] = useState<"lecture" | "practice" | string>(initialTab)
   const [files, setFiles] = useState<UserFileData[]>(initialFiles)
   const [fileContents, setFileContents] = useState<Record<string, string>>(
     Object.fromEntries(initialFiles.map(f => [f.id, f.content]))
@@ -223,14 +229,6 @@ export function EditorPanel({
     a.download = filename.endsWith(".hs") ? filename : `${filename}.hs`
     a.click()
     URL.revokeObjectURL(url)
-  }
-
-  const handleSave = async () => {
-    setSaving(true)
-    try {
-      const t = (await getToken()) || token
-      await api.saveLectureContent(t, selectedLectureId, lectureCode)
-    } finally { setSaving(false) }
   }
 
   const handleRun = async () => {

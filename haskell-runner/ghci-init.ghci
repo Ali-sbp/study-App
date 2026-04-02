@@ -1,0 +1,4 @@
+-- GHCi startup config (runs before :load, sets options only)
+-- The actual module imports are injected by server.py after :load,
+-- because :load resets the scope to the loaded module.
+:set -XNoMonomorphismRestriction

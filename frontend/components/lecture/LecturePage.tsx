@@ -19,9 +19,10 @@ interface Props {
   personalCopy: UserFileData
   token: string
   lectureId: string
+  initialTab?: "lecture" | "practice"
 }
 
-export function LecturePage({ lecture, initialHistory, initialFiles, allLectures, allPractice, personalCopy, token, lectureId }: Props) {
+export function LecturePage({ lecture, initialHistory, initialFiles, allLectures, allPractice, personalCopy, token, lectureId, initialTab = "lecture" }: Props) {
   const getSelectedTextRef = useRef<() => string>(() => "")
   const getEditorContentRef = useRef<() => string>(() => "")
   const [contextLabel, setContextLabel] = useState(`📄 ${lecture.title}`)
@@ -47,7 +48,7 @@ export function LecturePage({ lecture, initialHistory, initialFiles, allLectures
 
   // ── Chat ───────────────────────────────────────────────────────────
   const chat = useChat({
-    api: `/stream/chat/${lectureId}`,
+    api: `${process.env.NEXT_PUBLIC_BASE_PATH || ""}/stream/chat/${lectureId}`,
     initialMessages: initialHistory.map((m, i) => ({
       id: String(i),
       role: m.role as "user" | "assistant",
@@ -120,6 +121,7 @@ export function LecturePage({ lecture, initialHistory, initialFiles, allLectures
                 allPractice={allPractice}
                 personalCopy={personalCopy}
                 monacoTheme={theme.monaco}
+                initialTab={initialTab}
                 onGetSelectedText={(fn) => { getSelectedTextRef.current = fn }}
                 onGetEditorContent={(fn) => { getEditorContentRef.current = fn }}
                 onContextLabelChange={setContextLabel}

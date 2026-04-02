@@ -3,7 +3,7 @@ import { redirect } from "next/navigation"
 import { api } from "@/lib/api"
 import { LecturePage } from "@/components/lecture/LecturePage"
 
-export default async function LectureRoute({ params }: { params: { id: string } }) {
+export default async function LectureRoute({ params, searchParams }: { params: { id: string }, searchParams: { tab?: string } }) {
   const { getToken } = await auth()
   const token = await getToken()
 
@@ -30,6 +30,7 @@ export default async function LectureRoute({ params }: { params: { id: string } 
       personalCopy={personalCopy}
       token={token!}
       lectureId={params.id}
+      initialTab={searchParams.tab === "practice" ? "practice" : "lecture"}
     />
   )
 }
