@@ -11,3 +11,5 @@ __pycache__/
 *.pyc
 docs/superpowers/
 backend/.env
+.DS_Store
+.gitignore
